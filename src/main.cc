@@ -6,6 +6,6 @@
 int main()
 {
     Game game;
-    game.round();
+    game.play();
     return 0;
 }

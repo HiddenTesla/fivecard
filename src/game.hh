@@ -27,6 +27,7 @@ public:
     virtual void print() const = 0;
     
     int drawCard(std::vector<int>&);
+    void dropAllCards();
     const Card* lastCard() const;
 };
 
@@ -49,23 +50,27 @@ public:
 
 class Game
 {
-    friend int main2();
-    friend int main2(int, char**);
 private:
     AIPlayer mComputer;
     HumanPlayer mPlayer;
 
+    std::vector<int> mDeck;
+
     Player* mpBig;
     Player* mpSmall;
 
-    std::vector<int> mDeck;
+    int mRounds;
 
     void deal();
+    void resetDeck();
+    void resetRound();
 
 public:
     Game();
 
     void round();
+    void play();
+
     void printPlayerCards() const {mPlayer.print(); mComputer.print();}
     void printBalance() const;
 };

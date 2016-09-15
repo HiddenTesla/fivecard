@@ -7,6 +7,7 @@
 int randomBetween(int lower, int upper);
 
 Player::Player():
+    mRoundBet(0),
     mBalance(INITIAL_BALANCE),
     mNumCards(0)
     {
@@ -41,6 +42,14 @@ const Card* Player::lastCard() const
     return &mCards[mNumCards - 1];
 }
 
+void Player::dropAllCards()
+{
+    mNumCards = 0;
+    for (int i = 0; i < SIZE_OF_FULLHAND; ++i) {
+        mCards[i].isSet = false;
+    }
+}
+
 int AIPlayer::askForBet()
 {
     static const int AI_BET = 10;
@@ -70,9 +79,17 @@ int HumanPlayer::askForBet()
         }
         validBet = true;
     }
-    printf("You bet $%d\n", bet);
-    mBalance -= bet;
-    mRoundBet += bet;
+    // Bug fixed:
+    // If you enter a negative number, though considered to fold,
+    // your balance will still be "deducted" the negative bet (and thus increase)
+    if (bet > 0) {
+        printf("You bet $%d\n", bet);
+        mBalance -= bet;
+        mRoundBet += bet;
+    }
+    else {
+        printf("You fold\n");
+    }
     return bet;
 }
 
@@ -128,19 +145,53 @@ void HumanPlayer::print() const
 }
 
 Game::Game():
+    mDeck(SIZE_OF_DECK),
     mpBig(&mPlayer),
     mpSmall(&mComputer),
-    mDeck(SIZE_OF_DECK)
+    mRounds(0)
 {
     for (int i = 0; i < SIZE_OF_DECK; ++i) {
         mDeck[i] = i + 1;
     }
 }
 
+void Game::resetDeck()
+{
+    mDeck.resize(SIZE_OF_DECK);
+    for (int i = 0; i < SIZE_OF_DECK; ++i) {
+        mDeck[i] = i + 1;
+    }
+}
+
+void Game::play()
+{
+    bool gameover = false;
+    const Player* winner = NULL;
+    // Fixme: do we really need the 'gameover' flag?
+    while (!gameover) {
+        round();
+        if (mPlayer.mBalance <= 0) {
+            printf("You've lost all your money\n");
+            gameover = true;
+            winner = &mComputer;
+        }
+        if (mComputer.mBalance <= 0) {
+            printf("Computer's lost all its money\n");
+            gameover = true;
+            winner = &mPlayer;
+        }
+    }
+    if (winner == &mPlayer) {
+        printf("You win the game\n");
+    }
+    else {
+        printf("You lose the game\n");
+    }
+}
+
 void Game::round()
 {
-    mPlayer.mRoundBet = 0;
-    mComputer.mRoundBet = 0;
+    ++mRounds;
     deal();
     deal();
     this->printPlayerCards();
@@ -151,13 +202,11 @@ void Game::round()
         // Todo: penalty if folds at the first bet or follow
         int bet = mpBig->askForBet();
         if (bet <= 0) {
-            printf("Fold\n");
             roundWinner = mpSmall;
             roundLoser = mpBig;
             break;
         }
         if (!mpSmall->askForFollow(bet)) {
-            printf("Fold\n");
             roundLoser = mpSmall;
             roundWinner = mpBig;
             break;
@@ -175,6 +224,8 @@ void Game::round()
 
     if (roundWinner != NULL) { // Folds before all cards are revealed
         roundWinner->mBalance += (roundWinner->mRoundBet + roundLoser->mRoundBet);
+        printf("In round %d, you bet %d, computer bet %d\n",
+            mRounds, mPlayer.mRoundBet, mComputer.mRoundBet);
         if (roundWinner == &mPlayer) {
             printf("You win $%d\n", mComputer.mRoundBet);
         }
@@ -182,9 +233,19 @@ void Game::round()
             printf("You lose $%d\n", mPlayer.mRoundBet);
         }
         printBalance();
+        mpBig = roundWinner;
+        mpSmall = roundLoser;
     }
+    else {
+        // No one folds. Todo: compare 5 cards
+        printf("No one folds. Draw\n");
+        mPlayer.mBalance += mPlayer.mRoundBet;
+        mComputer.mBalance += mComputer.mRoundBet;
+        printBalance();
+    }
+    resetRound();
 
-    // No one folds. Todo: compare 5 cards
+    printf("\n\e[32;1m----------- ROUND %2d END -----------------\e[0m\n", mRounds);
 }
 
 void Game::deal()
@@ -208,6 +269,15 @@ void Game::deal()
         mpBig = &mComputer;
         mpSmall = &mPlayer;
     }
+}
+
+void Game::resetRound()
+{
+    resetDeck();
+    mPlayer.dropAllCards();
+    mComputer.dropAllCards();
+    mPlayer.mRoundBet = 0;
+    mComputer.mRoundBet = 0;
 }
 
 inline void Game::printBalance() const
