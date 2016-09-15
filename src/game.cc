@@ -1,6 +1,9 @@
 #include "game.hh"
 
 #include <cstdio>
+#include <sys/time.h>
+
+int randomBetween(int lower, int upper);
 
 Player::Player():
     mBalance(INITIAL_BALANCE),
@@ -20,9 +23,10 @@ int Player::drawCard(std::vector<int>& deck)
     }
     // Always draw card from the end of the deck
     // Todo: randomly draw a card
-    std::vector<int>::const_iterator i = deck.cend();
-    int cardNo = *(i - 1);
-    deck.pop_back();
+    std::vector<int>::const_iterator i = deck.cbegin();
+    i += randomBetween(0, deck.size());
+    int cardNo = *i;
+    deck.erase(i);
     mCards[mNumCards] = cardNo;
     ++mNumCards;
     return cardNo;
@@ -172,4 +176,11 @@ void Game::deal()
         mpBig = &mComputer;
         mpSmall = &mPlayer;
     }
+}
+
+int randomBetween(int lower, int upper)
+{
+    srand(time(NULL));
+    int r = rand() % (upper - lower) + lower;
+    return r;
 }
