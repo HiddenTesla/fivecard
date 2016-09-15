@@ -13,6 +13,7 @@ class Player
 protected:
     static const int INITIAL_BALANCE = 1000;
     
+    int mRoundBet;
     int mBalance;
     int mNumCards;
     Card mCards[SIZE_OF_FULLHAND]; 
@@ -65,7 +66,8 @@ public:
     Game();
 
     void round();
-    void print() const {mPlayer.print(); mComputer.print();}
+    void printPlayerCards() const {mPlayer.print(); mComputer.print();}
+    void printBalance() const;
 };
 
 

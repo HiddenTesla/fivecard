@@ -1,5 +1,6 @@
 #include "game.hh"
 
+#include <string>
 #include <cstdio>
 #include <sys/time.h>
 
@@ -43,7 +44,8 @@ const Card* Player::lastCard() const
 int AIPlayer::askForBet()
 {
     static const int AI_BET = 10;
-    mBalance -= 10;
+    mBalance -= AI_BET;
+    mRoundBet += AI_BET;
     return AI_BET;
 }
 
@@ -55,7 +57,9 @@ int HumanPlayer::askForBet()
     while (!validBet) {
         printf("How much do you want to bet (0 or negative to fold)? ");
         scanf("%d", &bet);
-        if (bet > mBalance) {
+        //if (bet > mBalance) {
+        // Allow bet exceed your balance
+        if (0) {
             printf("Bet $%d greater than your balance $%d. Try again\n",
                 bet, mBalance);
             continue;
@@ -67,7 +71,8 @@ int HumanPlayer::askForBet()
         validBet = true;
     }
     printf("You bet $%d\n", bet);
-    mBalance -= 10;
+    mBalance -= bet;
+    mRoundBet += bet;
     return bet;
 }
 
@@ -75,16 +80,21 @@ bool AIPlayer::askForFollow(int amount)
 {
     printf("Computer follows your bet\n");
     mBalance -= amount;
+    mRoundBet += amount;
     return true;
 }
 
 bool HumanPlayer::askForFollow(int amount)
 {
     printf("Computer bets $%d. Follow (Y/N)? ", amount);
-    char ch;
-    scanf("%c", &ch);
+    // Never use scanf("%c\n". ch)... which will lead to strange \n issues
+    static const int MAX_BUFFER_SIZE = 1024;
+    static char choice[MAX_BUFFER_SIZE];
+    scanf("%s", choice);
+    char ch = choice[0];
     if (ch == 'y' || ch == 'Y') {
         mBalance -= amount;
+        mRoundBet += amount;
         return true;
     }
     else {
@@ -98,7 +108,7 @@ void AIPlayer::print() const
     if (mNumCards < 2) {
         return;
     }
-    printf("Computer has:\n");
+    printf("Computer's cards:\n");
     // Opponent's first card is hidden
     printf("Hidden\n");
     for (int i = 0; i < mNumCards; ++i) {
@@ -111,7 +121,7 @@ void HumanPlayer::print() const
     if (mNumCards < 2) {
         return;
     }
-    printf("You have: \n");
+    printf("Your cards: \n");
     for (int i = 0; i < mNumCards; ++i) {
         mCards[i].print();
     }
@@ -129,18 +139,27 @@ Game::Game():
 
 void Game::round()
 {
+    mPlayer.mRoundBet = 0;
+    mComputer.mRoundBet = 0;
     deal();
     deal();
-    this->print();
+    this->printPlayerCards();
+    Player* roundWinner = NULL;
+    Player* roundLoser = NULL;
 
     while (mPlayer.mNumCards <= SIZE_OF_FULLHAND) {
+        // Todo: penalty if folds at the first bet or follow
         int bet = mpBig->askForBet();
         if (bet <= 0) {
             printf("Fold\n");
+            roundWinner = mpSmall;
+            roundLoser = mpBig;
             break;
         }
         if (!mpSmall->askForFollow(bet)) {
             printf("Fold\n");
+            roundLoser = mpSmall;
+            roundWinner = mpBig;
             break;
         }
 
@@ -151,8 +170,21 @@ void Game::round()
 
     } // while
 
-    this->print();
+    this->printPlayerCards();
     printf("%d cards left in deck\n", (int)mDeck.size());
+
+    if (roundWinner != NULL) { // Folds before all cards are revealed
+        roundWinner->mBalance += (roundWinner->mRoundBet + roundLoser->mRoundBet);
+        if (roundWinner == &mPlayer) {
+            printf("You win $%d\n", mComputer.mRoundBet);
+        }
+        else {
+            printf("You lose $%d\n", mPlayer.mRoundBet);
+        }
+        printBalance();
+    }
+
+    // No one folds. Todo: compare 5 cards
 }
 
 void Game::deal()
@@ -176,6 +208,12 @@ void Game::deal()
         mpBig = &mComputer;
         mpSmall = &mPlayer;
     }
+}
+
+inline void Game::printBalance() const
+{
+    printf("You have      $%d\n", mPlayer.mBalance);
+    printf("Computer have $%d\n", mComputer.mBalance);
 }
 
 int randomBetween(int lower, int upper)
