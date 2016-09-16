@@ -32,6 +32,78 @@ struct Card
     bool operator >(const Card&) const;
 };
 
+enum HandRank
+{
+    UNDEFINED_HANDRANK = -1,
+    NO_PAIR = 0,
+    ONE_PAIR,
+    TWO_PAIR,
+    THREE_OF_A_KIND,
+    STRAIGHT,
+    FLUSH,
+    FULL_HOUSE,
+    FOUR_OF_A_KIND,
+    STRAIGHT_FLUSH,
+    ROYAL_FLUSH,
+};
+
+const char* getHandRankName(HandRank);
+
+HandRank getHandRank(const Card* handCards);
+
 std::ostream& operator <<(std::ostream&, const Card&);
+
+struct HandInfo
+{  
+    // These nested structs and unions are more like Linux C kernel style
+    // Poor readability
+    union { 
+        struct {
+            int pairRank;
+            int singles[SIZE_OF_FULLHAND - 2];
+        } onePair;
+
+        struct {
+            int bigPairRank;
+            int smallPairRank;
+            int singleRank;
+        } twoPair;
+
+        struct {
+            int threeRank;
+            int bigSingleRank;
+            int smallSingleRank;
+        } three;
+
+        struct {
+            int topRank;
+        } straight;
+
+        struct {
+            enum Suite suite;
+        } flush;
+        
+        struct {
+            int threeRank;
+            int pairRank;
+        } fullHouse;
+
+        struct {
+            int fourRank;
+            int singleRank;
+        } four;
+
+        struct {
+            int topRank;
+            enum Suite suite;
+        } straightFlush;
+    };
+    enum HandRank handRank;
+
+    // Fixme: Member functions in a C style struct is ugly
+    HandInfo();
+    enum HandRank read(const Card*);
+    void printRank() const;
+};
 
 #endif

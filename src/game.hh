@@ -11,7 +11,7 @@ class Player
 {
     friend class Game;
 protected:
-    static const int INITIAL_BALANCE = 1000;
+    static const int INITIAL_BALANCE = 200;
     
     int mRoundBet;
     int mBalance;

@@ -194,7 +194,6 @@ void Game::round()
     ++mRounds;
     deal();
     deal();
-    this->printPlayerCards();
     Player* roundWinner = NULL;
     Player* roundLoser = NULL;
 
@@ -220,12 +219,11 @@ void Game::round()
     } // while
 
     this->printPlayerCards();
-    printf("%d cards left in deck\n", (int)mDeck.size());
 
     if (roundWinner != NULL) { // Folds before all cards are revealed
         roundWinner->mBalance += (roundWinner->mRoundBet + roundLoser->mRoundBet);
-        printf("In round %d, you bet %d, computer bet %d\n",
-            mRounds, mPlayer.mRoundBet, mComputer.mRoundBet);
+        //printf("In round %d, you bet %d, computer bet %d\n",
+            //mRounds, mPlayer.mRoundBet, mComputer.mRoundBet);
         if (roundWinner == &mPlayer) {
             printf("You win $%d\n", mComputer.mRoundBet);
         }
@@ -242,6 +240,9 @@ void Game::round()
         mPlayer.mBalance += mPlayer.mRoundBet;
         mComputer.mBalance += mComputer.mRoundBet;
         printBalance();
+        struct HandInfo playerHandInfo;
+        HandRank playerRank = playerHandInfo.read(mPlayer.mCards);
+        playerHandInfo.printRank();
     }
     resetRound();
 
@@ -252,15 +253,16 @@ void Game::deal()
 {
     mpBig->drawCard(mDeck);
     mpSmall->drawCard(mDeck);
-    printf("You draw:        ");
+    printf("You draw:        \e[34;1m");
     mPlayer.lastCard()->print();
-    printf("Computer draw:           ");
+    printf("\e[0mComputer draw:           \e[31;1m");
     if (mComputer.mNumCards <= 1) {
         printf("First card hidden\n");
     }
     else {
         mComputer.lastCard()->print();
     }
+    printf("\e[0m");
     if (*mPlayer.lastCard() > *mComputer.lastCard()) {
         mpBig = &mPlayer;
         mpSmall = &mComputer;
@@ -282,8 +284,8 @@ void Game::resetRound()
 
 inline void Game::printBalance() const
 {
-    printf("You have      $%d\n", mPlayer.mBalance);
-    printf("Computer have $%d\n", mComputer.mBalance);
+    printf("You have      \e[33;1m$%d\n\e[0m", mPlayer.mBalance);
+    printf("Computer have \e[33;1m$%d\n\e[0m", mComputer.mBalance);
 }
 
 int randomBetween(int lower, int upper)
