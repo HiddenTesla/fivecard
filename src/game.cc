@@ -313,3 +313,7 @@ int randomBetween(int lower, int upper)
     int r = rand() % (upper - lower) + lower;
     return r;
 }
+
+void neverUse(void)
+{
+}
