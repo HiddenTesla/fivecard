@@ -6,7 +6,13 @@
 #include <algorithm>
 
 bool cardCmp(const Card&, const Card&);
+bool intCmp(int, int);
 int findMostFreqRank(const std::map<int, int>&);
+
+bool isFlush(const Card*);
+bool isStraight(const Card*);
+int getStraightTopRank(const Card*);
+
 
 int rem(int d, int q)
 {
@@ -14,6 +20,19 @@ int rem(int d, int q)
     if (r == 0)
         r = q;
     return r;
+}
+
+int sign(int n)
+{
+    if (n > 0) {
+        return 1;
+    }
+    else if (n < 0) {
+        return -1;
+    }
+    else {
+        return 0;
+    }
 }
 
 void Card::assign(int n)
@@ -107,14 +126,6 @@ enum HandRank HandInfo::read(const Card* handCards)
         }
     }
 
-/*
-    for (Counter::const_iterator iter = rankStats.cbegin();
-        iter != rankStats.cend(); ++iter)
-    {
-        printf("Card (internal) rank %d appers %d times\n",
-            iter->first, iter->second);
-    }
-    */
     int mostFreqRank = findMostFreqRank(rankStats);
     switch (rankStats[mostFreqRank]) {
     case 4:
@@ -122,7 +133,6 @@ enum HandRank HandInfo::read(const Card* handCards)
         rankStats.erase(mostFreqRank);
         this->four.fourRank = mostFreqRank;
         this->four.singleRank = rankStats.cbegin()->first;
-        printf("Four %d with one %d\n", four.fourRank, four.singleRank);
         break;
     case 3: {
         rankStats.erase(mostFreqRank);
@@ -131,7 +141,6 @@ enum HandRank HandInfo::read(const Card* handCards)
             this->handRank = FULL_HOUSE;
             this->fullHouse.threeRank = mostFreqRank;
             this->fullHouse.pairRank = secondMFR;
-            printf("Three %d with pair of %d\n", fullHouse.threeRank, fullHouse.pairRank);
         }
         else {
             this->handRank = THREE_OF_A_KIND;
@@ -142,8 +151,6 @@ enum HandRank HandInfo::read(const Card* handCards)
             int single2 = iter->first;
             this->three.bigSingleRank = std::max(single1, single2);
             this->three.smallSingleRank = std::min(single1, single2);
-            printf("Three %d with big single %d small single %d\n",
-                three.threeRank, three.bigSingleRank, three.smallSingleRank);
         }
         break;
     }
@@ -155,23 +162,59 @@ enum HandRank HandInfo::read(const Card* handCards)
             this->twoPair.bigPairRank = std::max(mostFreqRank, secondMFR);
             this->twoPair.smallPairRank = std::min(mostFreqRank, secondMFR);
             this->twoPair.singleRank = rankStats.cbegin()->first;
-            printf("Two pairs. Big %d small %d single %d\n",
-                twoPair.bigPairRank, twoPair.smallPairRank, twoPair.singleRank);
         }
         else {
             this->handRank = ONE_PAIR;
             this->onePair.pairRank = mostFreqRank;
-            // Todo: sort the other 3
-            printf("One pair %d\n", onePair.pairRank);
+            Counter::const_iterator iter = rankStats.cbegin();
+            int* const singles = onePair.singles;
+            for (int i = 0; i < 3; ++i) {
+                singles[i] = iter->first;
+                ++iter;
+            }
+            std::sort(singles, singles + 3, intCmp);
+            for (int i = 0; i < 3; ++i) {
+            }
         }
         break;
     }
+    case 1:
+        break;
     default:
         printf("Impossible\n");
         return UNDEFINED_HANDRANK;
     }
 
-    printRank();
+    if (rankStats[mostFreqRank] == 1) {
+        bool flush = isFlush(copy);
+        bool straight = isStraight(copy);
+        if (flush && straight) {
+            if (copy[0].rank == RANK_10) {
+                this->handRank = ROYAL_FLUSH;
+            }
+            else {
+                this->handRank = STRAIGHT_FLUSH;
+            }
+            this->straightFlush.topRank = getStraightTopRank(copy);
+        }
+        else if (flush) {
+            this->handRank = FLUSH;
+            for (int i = 0; i < SIZE_OF_FULLHAND; ++i) {
+                this->flush.ranks[i] = copy[i].rank;
+            }
+        }
+        else if (straight) {
+            this->handRank = STRAIGHT;
+            this->straight.topRank = getStraightTopRank(copy);
+        }
+        else {
+            this->handRank = NO_PAIR;
+            for (int i = 0; i < SIZE_OF_FULLHAND; ++i) {
+                this->noPair.ranks[i] = copy[i].rank;
+            }
+        }
+    }
+
     return handRank;;
 }
 
@@ -222,23 +265,129 @@ bool cardCmp(const Card& c1, const Card& c2)
     return !(c1 > c2);
 }
 
-
-HandRank getHandRank(const Card* handCards)
+bool intCmp(int a, int b)
 {
-    // Have to make a copy, as quicksort needs to be performed on the array
-    static Card copy[SIZE_OF_FULLHAND];
-    static const size_t SIZE = sizeof(Card);
-    memcpy(copy, handCards, SIZE * SIZE_OF_FULLHAND);
-    printf("Unsorted cards:\n");
-    for (int i = 0; i < SIZE_OF_FULLHAND; ++i) {
-        copy[i].print();
-    }
-    std::sort(copy, copy + SIZE_OF_FULLHAND, cardCmp);
+    return a < b;
+}
 
-    printf("Sorted cards:\n");
-    for (int i = 0; i < SIZE_OF_FULLHAND; ++i) {
-        copy[i].print();
+bool isFlush(const Card* cards)
+{
+    for (int i = 1; i < SIZE_OF_FULLHAND; ++i) {
+        if (cards[i].suite != cards[0].suite) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool isStraight(const Card* orderedCards)
+{
+    bool straight = true;
+    for (int i = 1; i < SIZE_OF_FULLHAND; ++i) {
+        if (orderedCards[i].rank != orderedCards[i-1].rank + 1) {
+            straight = false;
+            break;
+        }
+    }
+    if (straight) {
+        return true;
+    }
+    if (orderedCards[SIZE_OF_FULLHAND - 1].rank != RANK_A) {
+        return false;
+    }
+    // Check if the ranks are (internal) 1, 2, 3, 4, 5
+    for (int i = 0; i < SIZE_OF_FULLHAND - 1; ++i) {
+        if (orderedCards[i].rank != i+1) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// A, 2, 3, 4, 5: top is 5 not A
+int getStraightTopRank(const Card* straightCards)
+{
+    if (straightCards[SIZE_OF_FULLHAND -1].rank == RANK_A) {
+        if (straightCards[0].rank == RANK_2) {
+            return RANK_5;
+        }
+        else {
+            return RANK_A;
+        }
+    }
+    else {
+        return straightCards[SIZE_OF_FULLHAND - 1].rank;
+    }
+}
+
+int handCompare(const HandInfo& p1, const HandInfo& p2)
+{
+    if (p1.handRank > p2.handRank) {
+        return P1_WIN;
+    }
+    else if (p1.handRank < p2.handRank) {
+        return P2_WIN;
     }
 
-    return UNDEFINED_HANDRANK;
+    switch (p1.handRank) {
+    case NO_PAIR:
+    case FLUSH: {
+        const int* p1Ranks;
+        const int* p2Ranks;
+        if (p1.handRank == NO_PAIR) {
+            p1Ranks = p1.noPair.ranks;
+            p2Ranks = p2.noPair.ranks;
+        }
+        else {
+            p1Ranks = p1.flush.ranks;
+            p2Ranks = p2.flush.ranks;
+        }
+        for (int i = SIZE_OF_FULLHAND; i >= 0; --i) {
+            if (p1Ranks[i] > p2Ranks[i]) {
+                return P1_WIN;
+            }
+            else if (p1Ranks[i] < p2Ranks[i]) {
+                return P2_WIN;
+            }
+        }
+        return DRAW;
+    }
+    case ONE_PAIR: {
+        if (p1.onePair.pairRank > p2.onePair.pairRank) {
+            return P1_WIN;
+        }
+        if (p1.onePair.pairRank < p2.onePair.pairRank) {
+            return P2_WIN;
+        }
+        return DRAW;
+    }
+    case TWO_PAIR:
+        if (p1.twoPair.bigPairRank > p2.twoPair.bigPairRank) {
+            return P1_WIN;
+        }
+        if (p1.twoPair.bigPairRank < p2.twoPair.bigPairRank) {
+            return P2_WIN;
+        }
+        if (p1.twoPair.smallPairRank > p2.twoPair.smallPairRank) {
+            return P1_WIN;
+        }
+        if (p1.twoPair.smallPairRank < p2.twoPair.smallPairRank) {
+            return P2_WIN;
+        }
+        return DRAW;
+    case THREE_OF_A_KIND:
+        return sign(p2.three.threeRank - p1.three.threeRank);
+    case STRAIGHT:
+        return sign(p2.straight.topRank - p1.straight.topRank);
+    case FULL_HOUSE: 
+        return sign(p2.fullHouse.threeRank - p1.fullHouse.threeRank);
+    case FOUR_OF_A_KIND:
+        return sign(p2.four.fourRank - p1.four.fourRank);
+    case STRAIGHT_FLUSH:
+    case ROYAL_FLUSH:
+        return sign(p2.straightFlush.topRank - p1.straightFlush.topRank);
+    default:
+        break;
+    }
+    return 0;
 }

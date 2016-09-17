@@ -16,6 +16,12 @@ enum Suite
     SPADE,
 };
 
+enum CardRank
+{
+    RANK_2 = 1, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9,
+    RANK_10, RANK_J, RANK_Q, RANK_K, RANK_A,
+};
+
 struct Card
 {
     Suite suite;
@@ -59,6 +65,10 @@ struct HandInfo
     // Poor readability
     union { 
         struct {
+            int ranks[SIZE_OF_FULLHAND];
+        } noPair;
+
+        struct {
             int pairRank;
             int singles[SIZE_OF_FULLHAND - 2];
         } onePair;
@@ -80,7 +90,7 @@ struct HandInfo
         } straight;
 
         struct {
-            enum Suite suite;
+            int ranks[SIZE_OF_FULLHAND];
         } flush;
         
         struct {
@@ -105,5 +115,14 @@ struct HandInfo
     enum HandRank read(const Card*);
     void printRank() const;
 };
+
+enum
+{
+    P1_WIN = -1,
+    DRAW   = 0,
+    P2_WIN = 1,
+};
+
+int handCompare(const HandInfo&, const HandInfo&);
 
 #endif

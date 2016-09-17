@@ -235,14 +235,33 @@ void Game::round()
         mpSmall = roundLoser;
     }
     else {
-        // No one folds. Todo: compare 5 cards
-        printf("No one folds. Draw\n");
-        mPlayer.mBalance += mPlayer.mRoundBet;
-        mComputer.mBalance += mComputer.mRoundBet;
-        printBalance();
-        struct HandInfo playerHandInfo;
-        HandRank playerRank = playerHandInfo.read(mPlayer.mCards);
+        struct HandInfo playerHandInfo, computerHandInfo;
+        playerHandInfo.read(mPlayer.mCards);
+        computerHandInfo.read(mComputer.mCards);
+        printf("You are: ");
         playerHandInfo.printRank();
+        printf("Computer is: ");
+        computerHandInfo.printRank();
+        switch (handCompare(playerHandInfo, computerHandInfo)) {
+        case P1_WIN:
+            roundWinner = &mPlayer;
+            roundLoser = &mComputer;
+            roundWinner->mBalance += roundWinner->mRoundBet * 2;
+            printf("You win %d\n", roundWinner->mRoundBet);
+            break;
+        case P2_WIN:
+            roundWinner = &mComputer;
+            roundLoser = &mPlayer;
+            roundWinner->mBalance += roundWinner->mRoundBet * 2;
+            printf("You lose %d\n", roundWinner->mRoundBet);
+            break;
+        case DRAW:
+            mPlayer.mBalance += mPlayer.mRoundBet;
+            mComputer.mBalance += mComputer.mRoundBet;
+        default:
+            break;
+        }
+        printBalance();
     }
     resetRound();
 
