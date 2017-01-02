@@ -1,6 +1,7 @@
 #include "game.hh"
 
 #include <string>
+#include <cstring>
 #include <cstdio>
 #include <sys/time.h>
 
@@ -58,21 +59,30 @@ int AIPlayer::askForBet()
     return AI_BET;
 }
 
+bool isValidInteger(const char*);
+
 int HumanPlayer::askForBet()
 {
     static const int MAX_BET = 100;
-    int bet;
+    static const int MAX_BUFFER_SIZE = 1024;
+    static char input[MAX_BUFFER_SIZE];
+    int bet = 0;
     bool validBet = false;
     while (!validBet) {
         printf("How much do you want to bet (0 or negative to fold)? ");
-        scanf("%d", &bet);
-        //if (bet > mBalance) {
-        // Allow bet exceed your balance
-        if (0) {
-            printf("Bet $%d greater than your balance $%d. Try again\n",
-                bet, mBalance);
+        scanf("%s", input);
+
+        // Seems wordy, but...
+        // If you enter something other than a number, e.g. "ssss"
+        // You will have wierd output!
+        if (!isValidInteger(input)) {
+            printf("Cannot convert '%s' into an integer. Try again\n", input);
             continue;
         }
+        bet = atoi(input);
+
+        // Allow bet exceed your balance (code removed)
+
         if (bet > MAX_BET) {
             printf("Bet at most $%d\n", MAX_BET);
             continue;
@@ -103,20 +113,30 @@ bool AIPlayer::askForFollow(int amount)
 
 bool HumanPlayer::askForFollow(int amount)
 {
-    printf("Computer bets $%d. Follow (Y/N)? ", amount);
     // Never use scanf("%c\n". ch)... which will lead to strange \n issues
     static const int MAX_BUFFER_SIZE = 1024;
     static char choice[MAX_BUFFER_SIZE];
-    scanf("%s", choice);
-    char ch = choice[0];
-    if (ch == 'y' || ch == 'Y') {
-        mBalance -= amount;
-        mRoundBet += amount;
-        return true;
+
+    // In practice, easily to enter a number and judeged as fold
+    // Hence change to:
+    // Must enter 'y', 'Y', 'n', 'N'
+    do {
+        printf("Computer bets $%d. Follow (Y/N)? ", amount);
+        scanf("%s", choice);
+        char ch = choice[0];
+        switch (ch) {
+        case 'y': case 'Y':
+            mBalance -= amount;
+            mRoundBet += amount;
+            return true;
+        case 'n': case 'N':
+            return false;
+        default:
+            printf("Must enter 'y' or 'n'\n");
+            break;
+        }
     }
-    else {
-        return false;
-    }
+    while (true);
 }
 
 
@@ -312,4 +332,19 @@ int randomBetween(int lower, int upper)
     srand(time(NULL));
     int r = rand() % (upper - lower) + lower;
     return r;
+}
+
+bool isValidInteger(const char* input)
+{
+    if (input[0] == '-' || input[0] == '+') {
+        return isValidInteger(input + 1);
+    }
+
+    int length = strlen(input);
+    for (int i = 0; i < length; ++i) {
+        if (input[i] > '9' || input[i] < '0') {
+            return false;
+        }
+    }
+    return true;
 }
